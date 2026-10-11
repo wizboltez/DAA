@@ -4,7 +4,7 @@ const { execFile } = require("child_process");
 
 const app = express();
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;   // Render sets PORT
 const ROOT = path.join(__dirname, "..");
 const PLANNER = path.join(ROOT, "cpp", process.platform === "win32" ? "planner.exe" : "planner");
 const USER_AGENT = "SmartTravelPlanner/1.0 (DAA student project)";

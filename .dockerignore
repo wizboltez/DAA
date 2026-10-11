@@ -1,0 +1,7 @@
+node_modules
+dist
+.git
+DAA-FA2
+backend/.env
+cpp/planner
+cpp/*.exe
