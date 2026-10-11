@@ -1,6 +1,0 @@
-5
-Mumbai 0 0
-Lonavala 2 40
-Pune 3 60
-Mahabaleshwar 4 80
-Goa 0 0

@@ -1,255 +1,101 @@
+#include "planner.h"
+
+#include <chrono>
+#include <cstdio>
 #include <iostream>
-#include <vector>
-#include <string>
 
-#include "branchAndBound.h"
+// ============================================================
+// INPUT (stdin)
+//
+//   n availableTime            n = total locations (start + places + final)
+//   exploreTime value          n lines, one per location
+//   travel time matrix         n x n, hours
+//   distance matrix            n x n, km
+//
+// OUTPUT (stdout): JSON with the result of all three algorithms
+// ============================================================
 
-using namespace std;
+// Small inputs finish faster than the clock can measure,
+// so repeat for at least 20 ms and report the average.
+static Result timed(Result (*algorithm)(const Trip&), const Trip& trip)
+{
+    auto start = chrono::steady_clock::now();
+    chrono::duration<double, milli> elapsed(0);
+    Result r;
+    int runs = 0;
+
+    do
+    {
+        r = algorithm(trip);
+        runs++;
+        elapsed = chrono::steady_clock::now() - start;
+    } while (elapsed.count() < 20);
+
+    r.timeMs = elapsed.count() / runs;
+    return r;
+}
+
+static void printJson(const Result& r, bool comma)
+{
+    printf("  {\"algorithm\": \"%s\", \"found\": %s, \"route\": [",
+           r.algorithm.c_str(), r.found ? "true" : "false");
+
+    for (size_t i = 0; i < r.route.size(); i++)
+        printf("%s%d", i ? ", " : "", r.route[i]);
+
+    printf("], \"value\": %d, \"travelTime\": %.4f, \"exploreTime\": %.4f, "
+           "\"distance\": %.2f, \"nodesExplored\": %.0f, \"nodesPruned\": %.0f, "
+           "\"timeMs\": %.4f}%s\n",
+           r.value, r.travelTime, r.exploreTime, r.distance,
+           (double)r.nodesExplored, (double)r.nodesPruned, r.timeMs, comma ? "," : "");
+}
 
 int main()
 {
-    cout << "\n";
-    cout << "============================================================\n";
-    cout << "                 SMART TRAVEL PLANNER\n";
-    cout << "                  BRANCH & BOUND\n";
-    cout << "============================================================\n";
+    int n;
+    Trip trip;
 
-    // --------------------------------------------------------
-    // Number of tourist places
-    // --------------------------------------------------------
-
-    int numberOfPlaces;
-
-    cout << "\nEnter number of tourist places: ";
-    cin >> numberOfPlaces;
-
-    if (numberOfPlaces <= 0)
+    if (!(cin >> n >> trip.maxTime) || n < 2 || n > 17)
     {
-        cout << "Invalid number of places.\n";
-        return 0;
+        cerr << "Expected 2 to 17 locations (at most 15 tourist places).\n";
+        return 1;
     }
 
-    // --------------------------------------------------------
-    // Location indexing
-    //
-    // 0       = Starting location
-    // 1..n    = Tourist places
-    // n+1     = Final location
-    // --------------------------------------------------------
+    trip.places.resize(n);
+    trip.travelTime.assign(n, vector<double>(n));
+    trip.distance.assign(n, vector<double>(n));
 
-    int totalLocations = numberOfPlaces + 2;
-    int finalLocation = numberOfPlaces + 1;
+    for (auto& p : trip.places)
+        cin >> p.exploreTime >> p.value;
 
-    vector<Place> places(totalLocations);
+    for (auto& row : trip.travelTime)
+        for (double& x : row)
+            cin >> x;
 
-    // --------------------------------------------------------
-    // Starting location
-    // --------------------------------------------------------
+    for (auto& row : trip.distance)
+        for (double& x : row)
+            cin >> x;
 
-    cout << "\nStarting location: ";
-
-    cin >> ws;
-    getline(cin, places[0].name);
-
-    places[0].exploreTime = 0.0;
-    places[0].value = 0;
-
-    // --------------------------------------------------------
-    // Tourist places
-    // --------------------------------------------------------
-
-    for (int i = 1; i <= numberOfPlaces; i++)
+    if (!cin)
     {
-        cout << "\nTourist Place " << i << "\n";
+        cerr << "Incomplete input.\n";
+        return 1;
+    }
 
-        cout << "Name: ";
-
-        cin >> ws;
-        getline(cin, places[i].name);
-
-        cout << "Exploration time (hours): ";
-        cin >> places[i].exploreTime;
-
-        if (places[i].exploreTime <= 0)
+    for (int i = 1; i < trip.last(); i++)
+    {
+        if (trip.places[i].exploreTime <= 0 || trip.places[i].value <= 0)
         {
-            cout << "Exploration time must be positive.\n";
-            return 0;
-        }
-
-        cout << "Place value: ";
-        cin >> places[i].value;
-
-        if (places[i].value <= 0)
-        {
-            cout << "Place value must be positive.\n";
-            return 0;
+            cerr << "Exploration time and value must be positive.\n";
+            return 1;
         }
     }
 
-    // --------------------------------------------------------
-    // Final location
-    // --------------------------------------------------------
-
-    cout << "\nFinal location: ";
-
-    cin >> ws;
-    getline(cin, places[finalLocation].name);
-
-    places[finalLocation].exploreTime = 0.0;
-    places[finalLocation].value = 0;
-
-    // ========================================================
-    // TEMPORARY TRAVEL TIME MATRIX
-    // ========================================================
-    //
-    // For now, we enter this manually.
-    //
-    // Later:
-    //
-    // GPS / Routing API
-    //        ↓
-    //     Node.js
-    //        ↓
-    //      C++
-    //
-    // ========================================================
-
-    vector<vector<double>> travelTime(
-        totalLocations,
-        vector<double>(totalLocations, 0.0)
-    );
-
-    cout << "\n";
-    cout << "============================================================\n";
-    cout << "                 TRAVEL TIME DATA\n";
-    cout << "============================================================\n";
-
-    cout << "Enter travel time in hours.\n";
-    cout << "Example: 30 minutes = 0.50 hours.\n";
-
-    for (int i = 0; i < totalLocations; i++)
-    {
-        for (int j = 0; j < totalLocations; j++)
-        {
-            if (i == j)
-            {
-                travelTime[i][j] = 0.0;
-                continue;
-            }
-
-            cout << "\n"
-                 << places[i].name
-                 << " -> "
-                 << places[j].name
-                 << ": ";
-
-            cin >> travelTime[i][j];
-
-            if (travelTime[i][j] < 0)
-            {
-                cout << "Travel time cannot be negative.\n";
-                return 0;
-            }
-        }
-    }
-
-    // ========================================================
-    // TEMPORARY DISTANCE MATRIX
-    // ========================================================
-
-    vector<vector<double>> distanceMatrix(
-        totalLocations,
-        vector<double>(totalLocations, 0.0)
-    );
-
-    cout << "\n";
-    cout << "============================================================\n";
-    cout << "                 DISTANCE DATA\n";
-    cout << "============================================================\n";
-
-    cout << "Enter road distance in kilometres.\n";
-
-    for (int i = 0; i < totalLocations; i++)
-    {
-        for (int j = 0; j < totalLocations; j++)
-        {
-            if (i == j)
-            {
-                distanceMatrix[i][j] = 0.0;
-                continue;
-            }
-
-            cout << "\n"
-                 << places[i].name
-                 << " -> "
-                 << places[j].name
-                 << ": ";
-
-            cin >> distanceMatrix[i][j];
-
-            if (distanceMatrix[i][j] < 0)
-            {
-                cout << "Distance cannot be negative.\n";
-                return 0;
-            }
-        }
-    }
-
-    // --------------------------------------------------------
-    // Available total time
-    // --------------------------------------------------------
-
-    double availableTime;
-
-    cout << "\nAvailable total time (hours): ";
-    cin >> availableTime;
-
-    if (availableTime <= 0)
-    {
-        cout << "Available time must be positive.\n";
-        return 0;
-    }
-
-    // ========================================================
-    // CREATE TRAVEL PLANNER
-    // ========================================================
-
-    TravelPlanner planner(
-        places,
-        travelTime,
-        distanceMatrix,
-        availableTime,
-        0,
-        finalLocation
-    );
-
-    // ========================================================
-    // RUN BRANCH & BOUND
-    // ========================================================
-
-    cout << "\n";
-    cout << "============================================================\n";
-    cout << "             PLANNING YOUR TRIP...\n";
-    cout << "============================================================\n";
-
-    planner.solve();
-
-    // ========================================================
-    // DISPLAY RESULT
-    // ========================================================
-
-    planner.displayResult();
-
-    // ========================================================
-    // DISPLAY ALGORITHM INFORMATION
-    // ========================================================
-
-    planner.displayAlgorithmInfo();
-
-    cout << "\n";
-    cout << "============================================================\n";
-    cout << "                    END OF PROGRAM\n";
-    cout << "============================================================\n";
+    printf("[\n");
+    printJson(timed(backtracking, trip), true);
+    printJson(timed(branchAndBound, trip), true);
+    printJson(timed(dynamicProgramming, trip), false);
+    printf("]\n");
 
     return 0;
 }
