@@ -205,17 +205,12 @@ Response: `stops` (in visiting order, with coordinates, arrival time and the leg
 
 ---
 
-## 👥 Team Members
-
-| Member   | Responsibility               |
-| -------- | ---------------------------- |
-| Person 1 | Backtracking                 |
-| Person 2 | Branch and Bound             |
-| Person 3 | Dynamic Programming          |
-| Person 4 | Integration and Main Program |
-
----
-
 ## 📚 Academic Purpose
 
 This project is developed as part of a **Design and Analysis of Algorithms (DAA)** course to demonstrate how Backtracking, Branch and Bound and Dynamic Programming solve the same optimization problem, and how their efficiency differs.
+
+## TEAM MEMBERS
+- SAKSHI KAURWAR 
+- POOJA YADAV
+- EKTA BANDAL
+- ANUSHKA PARKHI
