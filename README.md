@@ -145,7 +145,6 @@ DAA/
 │   ├── dynamicProgramming.cpp
 │   └── main.cpp               Reads trip from stdin, prints JSON for all 3 algorithms
 ├── data/sample.txt            Sample input for the C++ program
-├── docs/                      SRS
 ├── vite.config.js             Builds frontend/ into dist/
 ├── components.json            shadcn config
 └── package.json               npm scripts: build, start, dev
