@@ -36,6 +36,10 @@ struct Result
     double travelTime = 0, exploreTime = 0, distance = 0;
     long long nodesExplored = 0, nodesPruned = 0;
     double timeMs = 0;
+    long long spaceBytes = 0;
+    string timeComplexity;
+    string spaceComplexity;
+    int maxDepthOrStates = 0;
 };
 
 Result backtracking(const Trip& trip);

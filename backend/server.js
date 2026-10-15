@@ -238,6 +238,70 @@ app.post("/api/plan-trip", async (req, res) => {
 
         const skippedIndexes = places.map((_, i) => i + 1).filter(i => !best.route.includes(i));
 
+        // Cache road geometries for each unique route found by any algorithm
+        const geometryCache = {};
+        for (const r of results) {
+            const key = r.route.join(",");
+            if (!geometryCache[key]) {
+                const rOrder = [0, ...r.route, names.length - 1];
+                geometryCache[key] = await roadGeometry(rOrder.map(i => coordinates[i]));
+            }
+        }
+
+        function formatBytes(bytes) {
+            if (!bytes || bytes === 0) return "0 B";
+            if (bytes < 1024) return `${bytes} B`;
+            if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+            return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+        }
+
+        const comparison = results.map(r => {
+            const algoOrder = [0, ...r.route, names.length - 1];
+            let algoClock = 0;
+            const algoStops = algoOrder.map((index, k) => {
+                const prev = algoOrder[k - 1];
+                const leg = k === 0 ? null : {
+                    time: matrix.time[prev][index],
+                    distance: matrix.distance[prev][index]
+                };
+                if (leg) algoClock += leg.time;
+                const arrive = algoClock;
+                const place = places[index - 1];
+                const explore = place ? place.exploreTime : 0;
+                algoClock += explore;
+                return {
+                    name: names[index],
+                    type: k === 0 ? "start" : k === algoOrder.length - 1 ? "final" : "place",
+                    lat: coordinates[index][1],
+                    lon: coordinates[index][0],
+                    value: place ? place.value : 0,
+                    arrive, explore, leg
+                };
+            });
+
+            return {
+                algorithm: r.algorithm,
+                found: r.found,
+                route: r.route,
+                order: algoOrder,
+                stops: algoStops,
+                value: r.value,
+                nodesExplored: r.nodesExplored,
+                nodesPruned: r.nodesPruned,
+                timeMs: r.timeMs,
+                spaceBytes: r.spaceBytes || 0,
+                spaceFormatted: formatBytes(r.spaceBytes || 0),
+                timeComplexity: r.timeComplexity || (r.algorithm === "Dynamic Programming" ? "O(2ⁿ · n²)" : "O(n!)"),
+                spaceComplexity: r.spaceComplexity || (r.algorithm === "Dynamic Programming" ? "O(2ⁿ · n)" : "O(n)"),
+                maxDepthOrStates: r.maxDepthOrStates || 0,
+                travelTime: r.travelTime,
+                explorationTime: r.exploreTime,
+                totalTime: r.travelTime + r.exploreTime,
+                distance: Number(r.distance.toFixed(1)),
+                geometry: geometryCache[r.route.join(",")]
+            };
+        });
+
         const skipped = await Promise.all(skippedIndexes.map(async s => ({
             name: names[s],
             value: places[s - 1].value,
@@ -250,20 +314,14 @@ app.post("/api/plan-trip", async (req, res) => {
             success: true,
             stops: stops,
             skipped: skipped,
-            geometry: await roadGeometry(order.map(i => coordinates[i])),
+            geometry: geometryCache[best.route.join(",")],
             totalValue: best.value,
             totalDistance: Number(best.distance.toFixed(1)),
             travelTime: best.travelTime,
             explorationTime: best.exploreTime,
             totalTime: totalTime,
             remainingTime: availableTime - totalTime,
-            comparison: results.map(r => ({
-                algorithm: r.algorithm,
-                value: r.value,
-                nodesExplored: r.nodesExplored,
-                nodesPruned: r.nodesPruned,
-                timeMs: r.timeMs
-            }))
+            comparison: comparison
         });
 
     } catch (error) {

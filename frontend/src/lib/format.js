@@ -16,7 +16,15 @@ export function clock(hours) {
 }
 
 export function formatMs(ms) {
-    return ms < 1 ? `${Math.round(ms * 1000)} µs` : `${ms.toFixed(1)} ms`;
+    if (ms === 0) return "< 1 µs";
+    return ms < 1 ? `${Math.round(ms * 1000)} µs` : `${ms.toFixed(2)} ms`;
+}
+
+export function formatBytes(bytes) {
+    if (!bytes || bytes === 0) return "0 B";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 // Plain-text reason a place was skipped (used in the list and the map tooltip)

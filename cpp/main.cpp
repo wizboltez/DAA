@@ -45,9 +45,12 @@ static void printJson(const Result& r, bool comma)
 
     printf("], \"value\": %d, \"travelTime\": %.4f, \"exploreTime\": %.4f, "
            "\"distance\": %.2f, \"nodesExplored\": %.0f, \"nodesPruned\": %.0f, "
-           "\"timeMs\": %.4f}%s\n",
+           "\"timeMs\": %.4f, \"spaceBytes\": %lld, \"timeComplexity\": \"%s\", "
+           "\"spaceComplexity\": \"%s\", \"maxDepthOrStates\": %d}%s\n",
            r.value, r.travelTime, r.exploreTime, r.distance,
-           (double)r.nodesExplored, (double)r.nodesPruned, r.timeMs, comma ? "," : "");
+           (double)r.nodesExplored, (double)r.nodesPruned, r.timeMs,
+           r.spaceBytes, r.timeComplexity.c_str(), r.spaceComplexity.c_str(),
+           r.maxDepthOrStates, comma ? "," : "");
 }
 
 int main()

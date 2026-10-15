@@ -110,6 +110,20 @@ Result dynamicProgramming(const Trip& t)
     reverse(r.route.begin(), r.route.end());
 
     r.found = bestValue >= 0;
+    r.nodesPruned = 0;
+
+    // Space calculation:
+    // dp table has (1 << k) rows of k doubles: (1 << k) * k * sizeof(double)
+    // parent table has (1 << k) rows of k ints: (1 << k) * k * sizeof(int)
+    // vector overhead for (1 << k) rows: 2 * (1 << k) * sizeof(vector)
+    long long tableEntries = (long long)full * k;
+    long long tableMemory = tableEntries * (sizeof(double) + sizeof(int));
+    long long vectorOverhead = (long long)full * (sizeof(vector<double>) + sizeof(vector<int>));
+    r.spaceBytes = tableMemory + vectorOverhead + sizeof(dp) + sizeof(parent);
+    r.timeComplexity = "O(2ⁿ · n²)";
+    r.spaceComplexity = "O(2ⁿ · n)";
+    r.maxDepthOrStates = (int)tableEntries;
+
     evaluate(t, r);
     return r;
 }

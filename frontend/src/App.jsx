@@ -111,7 +111,7 @@ export default function App() {
             </aside>
 
             <main className="relative order-first h-[55vh] md:order-none md:h-auto">
-                <TripMap result={result} replayKey={replayKey} onStop={setActiveStop} />
+                <TripMap result={result} comparison={result?.comparison} replayKey={replayKey} onStop={setActiveStop} />
 
                 {loading && (
                     <div className="absolute inset-0 z-[1000] grid place-items-center bg-background/60 backdrop-blur-[1px]">
